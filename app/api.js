@@ -1,6 +1,6 @@
 'use strict';
 
-const GRAPHQL_URL = process.env.API_BASE_URL
+const GRAPHQL_URL = process.env.API_BASE_URL;
 if (!GRAPHQL_URL) throw new Error('API_BASE_URL environment variable is not set');
 
 function basicAuthHeader() {
@@ -81,4 +81,4 @@ async function getCollection() {
   }));
 }
 
-module.exports = { searchCoins, getPriceHistory, getCollection, addToCollection };
+module.exports = { searchCoins, getPriceHistory, getCollection };

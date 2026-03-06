@@ -8,4 +8,5 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-CMD ["node", "index.js"]
+ENV PORT=8080
+CMD ["node", "server.js"]
