@@ -29,15 +29,20 @@ async function handleSearch(ctx) {
     });
   }
 
-  const keyboard = new InlineKeyboard();
-  for (const coin of coins) {
-    keyboard.text(getCoinTitle(coin), `coin_${coin.id}`).row();
-  }
-
   await ctx.reply(
     `Знайдено <b>${coins.length}</b> монет за запитом "<b>${escapeHtml(query)}</b>":`,
-    { parse_mode: 'HTML', reply_markup: keyboard },
+    { parse_mode: 'HTML' },
   );
+
+  for (const coin of coins) {
+    const title = getCoinTitle(coin);
+    const keyboard = new InlineKeyboard().text(title, `coin_${coin.id}`);
+    if (coin.photo) {
+      await ctx.replyWithPhoto(coin.photo, { caption: title, reply_markup: keyboard });
+    } else {
+      await ctx.reply(title, { reply_markup: keyboard });
+    }
+  }
 }
 
 function escapeHtml(text) {

@@ -35,12 +35,12 @@ User message/callback
 ```
 
 **`app/api.js`** — all HTTP calls (native `fetch`, Node 20+):
-- `searchCoins(query)` — `GET /wp/v2/coins?search=...&per_page=5` (standard WP REST)
-- `getPriceHistory(coinId)` — `GET {API_BASE}/coins/{id}/price-history`
-- `getCollection()` — `GET {API_BASE}/collection` (Basic Auth)
-- `addToCollection(coinId)` — `POST {API_BASE}/collection` (Basic Auth)
+- `searchCoins(query)` — GraphQL `coins(where:{search})` query
+- `getPriceHistory(coinId)` — GraphQL `coin(id, idType:DATABASE_ID) { priceHistory }` query
+- `getCollection()` — `GET {API_BASE}/collection` (Basic Auth, REST)
+- `addToCollection(coinId)` — `POST {API_BASE}/collection` (Basic Auth, REST)
 
-`API_BASE_URL` points to the custom namespace (`/wp-json/coins/v1`). The standard WP REST base (`/wp-json/wp/v2`) is derived by stripping `/coins/v1` from it.
+`API_BASE_URL` points to the custom namespace (`/wp-json/coins/v1`). The GraphQL endpoint (`/graphql`) is derived by stripping `/wp-json/coins/v1` from it.
 
 **`app/handlers/callbacks.js`** — two callback-query handlers matched by regex:
 - `coin_(\d+)`: fetches price history and collection status in parallel try/catch blocks, replies with a new coin-card message. The coin title is extracted from the clicked button's text in the search results keyboard.

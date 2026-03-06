@@ -1,9 +1,7 @@
 'use strict';
 
 const API_BASE = process.env.API_BASE_URL;
-// API_BASE_URL = https://coins.cybers.pro/wp-json/coins/v1
-// WP standard REST API lives at /wp-json/wp/v2
-const WP_BASE = API_BASE.replace(/\/coins\/v1\/?$/, '');
+const GRAPHQL_URL = API_BASE.replace(/\/wp-json\/coins\/v1\/?$/, '/graphql');
 
 function basicAuthHeader() {
   const credentials = Buffer.from(
@@ -12,27 +10,75 @@ function basicAuthHeader() {
   return `Basic ${credentials}`;
 }
 
-async function searchCoins(query) {
-  const url = `${WP_BASE}/wp/v2/coins?search=${encodeURIComponent(query)}&per_page=5`;
-  const res = await fetch(url);
+async function gql(query, variables = {}, extraHeaders = {}) {
+  const res = await fetch(GRAPHQL_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    body: JSON.stringify({ query, variables }),
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors[0].message);
+  return json.data;
+}
+
+async function searchCoins(query) {
+  const data = await gql(
+    `query SearchCoins($search: String!) {
+      coins(where: { search: $search }, first: 5) {
+        nodes {
+          databaseId
+          title
+          featuredImage {
+            node {
+              sourceUrl(size: MEDIUM)
+            }
+          }
+        }
+      }
+    }`,
+    { search: query },
+  );
+  return data.coins.nodes.map((c) => ({
+    id: c.databaseId,
+    title: { rendered: c.title },
+    photo: c.featuredImage?.node?.sourceUrl ?? null,
+  }));
 }
 
 async function getPriceHistory(coinId) {
-  const url = `${API_BASE}/coins/${coinId}/price-history`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await gql(
+    `query GetPriceHistory($id: ID!) {
+      coin(id: $id, idType: DATABASE_ID) {
+        priceHistory {
+          date
+          price
+          source
+        }
+      }
+    }`,
+    { id: String(coinId) },
+  );
+  return data.coin?.priceHistory ?? [];
 }
 
 async function getCollection() {
-  const url = `${API_BASE}/collection`;
-  const res = await fetch(url, {
-    headers: { Authorization: basicAuthHeader() },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await gql(
+    `query {
+      myCollection {
+        coinId
+        quantity
+        purchasePrice
+      }
+    }`,
+    {},
+    { Authorization: basicAuthHeader() },
+  );
+  return data.myCollection.map((item) => ({
+    coin_id: item.coinId,
+    quantity: item.quantity,
+    paid: item.purchasePrice ?? 0,
+  }));
 }
 
 async function addToCollection(coinId) {
