@@ -1,7 +1,7 @@
 'use strict';
 
-const API_BASE = process.env.API_BASE_URL;
-const GRAPHQL_URL = API_BASE.replace(/\/wp-json\/coins\/v1\/?$/, '/graphql');
+const GRAPHQL_URL = process.env.API_BASE_URL
+if (!GRAPHQL_URL) throw new Error('API_BASE_URL environment variable is not set');
 
 function basicAuthHeader() {
   const credentials = Buffer.from(
@@ -79,20 +79,6 @@ async function getCollection() {
     quantity: item.quantity,
     paid: item.purchasePrice ?? 0,
   }));
-}
-
-async function addToCollection(coinId) {
-  const url = `${API_BASE}/collection`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: basicAuthHeader(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ coin_id: coinId }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 module.exports = { searchCoins, getPriceHistory, getCollection, addToCollection };
