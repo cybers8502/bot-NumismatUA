@@ -1,7 +1,10 @@
 'use strict';
 
-const GRAPHQL_URL = process.env.API_BASE_URL;
-if (!GRAPHQL_URL) throw new Error('API_BASE_URL environment variable is not set');
+function getGraphqlUrl() {
+  const url = process.env.API_BASE_URL;
+  if (!url) throw new Error('API_BASE_URL environment variable is not set');
+  return url;
+}
 
 function basicAuthHeader() {
   const credentials = Buffer.from(
@@ -11,29 +14,47 @@ function basicAuthHeader() {
 }
 
 async function gql(query, variables = {}, extraHeaders = {}) {
-  const res = await fetch(GRAPHQL_URL, {
+  const url = getGraphqlUrl();
+  console.log('[api] GraphQL request →', url, JSON.stringify(variables));
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.errors) throw new Error(json.errors[0].message);
+
+  const rawText = await res.text();
+  console.log('[api] GraphQL response status:', res.status);
+
+  if (!res.ok) {
+    console.error('[api] HTTP error body:', rawText);
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  let json;
+  try {
+    json = JSON.parse(rawText);
+  } catch (e) {
+    console.error('[api] Failed to parse JSON:', rawText);
+    throw new Error('Invalid JSON response');
+  }
+
+  if (json.errors) {
+    console.error('[api] GraphQL errors:', JSON.stringify(json.errors));
+    throw new Error(json.errors[0].message);
+  }
+
+  console.log('[api] GraphQL data keys:', Object.keys(json.data ?? {}));
   return json.data;
 }
 
 async function searchCoins(query) {
   const data = await gql(
     `query SearchCoins($search: String!) {
-      coins(where: { search: $search }, first: 5) {
+      coins(where: { search: $search }) {
         nodes {
           databaseId
           title
-          featuredImage {
-            node {
-              sourceUrl(size: MEDIUM)
-            }
-          }
         }
       }
     }`,
@@ -42,7 +63,7 @@ async function searchCoins(query) {
   return data.coins.nodes.map((c) => ({
     id: c.databaseId,
     title: { rendered: c.title },
-    photo: c.featuredImage?.node?.sourceUrl ?? null,
+    photo: null,
   }));
 }
 
@@ -81,4 +102,21 @@ async function getCollection() {
   }));
 }
 
-module.exports = { searchCoins, getPriceHistory, getCollection };
+async function addToCollection(coinId) {
+  await gql(
+    `mutation AddToCollection($coinId: Int!) {
+      addToCollection(coinId: $coinId) {
+        success
+      }
+    }`,
+    { coinId: Number(coinId) },
+    { Authorization: basicAuthHeader() },
+  );
+}
+
+module.exports = {
+  searchCoins,
+  getPriceHistory,
+  getCollection,
+  addToCollection,
+};

@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+.env.*
+docker-compose.yml
+cloudbuild.yaml
+.gcloudignore
+.husky
+tests/
+*.log
+logs/

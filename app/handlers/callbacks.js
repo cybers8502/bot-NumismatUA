@@ -13,7 +13,11 @@ function escapeHtml(text) {
 function formatDate(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('uk-UA', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 /**
@@ -21,7 +25,8 @@ function formatDate(dateStr) {
  * The button that was pressed carries both text (title) and callback_data.
  */
 function getCoinNameFromMessage(ctx, coinId) {
-  const buttons = ctx.callbackQuery.message?.reply_markup?.inline_keyboard?.flat() ?? [];
+  const buttons =
+    ctx.callbackQuery.message?.reply_markup?.inline_keyboard?.flat() ?? [];
   const btn = buttons.find((b) => b.callback_data === `coin_${coinId}`);
   return btn?.text || `Монета #${coinId}`;
 }
@@ -37,12 +42,19 @@ async function handleCoinCallback(ctx) {
   try {
     const history = await getPriceHistory(coinId);
     if (Array.isArray(history) && history.length > 0) {
-      const latest = history.slice().sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      const latest = history
+        .slice()
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
       priceText = `<b>Остання відома ціна:</b> ${escapeHtml(latest.price)} грн (${formatDate(latest.date)})`;
     } else {
       priceText = '<b>Ціна:</b> невідома';
     }
-  } catch {
+  } catch (err) {
+    console.error(
+      '[callbacks] getPriceHistory failed:',
+      err.message,
+      err.stack,
+    );
     priceText = '<b>Ціна:</b> не вдалося отримати';
   }
 
@@ -63,7 +75,8 @@ async function handleCoinCallback(ctx) {
     } else {
       collectionText = '➕ Не в колекції';
     }
-  } catch {
+  } catch (err) {
+    console.error('[callbacks] getCollection failed:', err.message, err.stack);
     collectionText = '📋 Не вдалося перевірити колекцію';
   }
 
@@ -88,7 +101,12 @@ async function handleAddCallback(ctx) {
 
   try {
     await addToCollection(Number(coinId));
-  } catch {
+  } catch (err) {
+    console.error(
+      '[callbacks] addToCollection failed:',
+      err.message,
+      err.stack,
+    );
     await ctx.reply('⚠️ Не вдалося додати до колекції. Спробуйте пізніше.');
     return;
   }
