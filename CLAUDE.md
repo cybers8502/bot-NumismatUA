@@ -16,51 +16,69 @@ npx biome format --write .  # Biome formatter (also runs automatically on pre-co
 # Tests
 npx jest            # Run all tests
 npx jest tests/edgeCases.test.js  # Run a single test file
+
+# Deploy
+npm run deploy       # firebase deploy --only functions:numismatWebhook
 ```
 
 ## Architecture
 
-The app is a Telegram bot for a Ukrainian numismatic (coin) catalogue backed by a WordPress REST API.
+The app is a Telegram bot for a Ukrainian numismatic (coin) catalogue backed by a WordPress GraphQL API (WPGraphQL + JWT auth).
 
-**Entry point:** `index.js` — creates a grammY `Bot`, registers command and callback-query handlers, starts long-polling.
+**Entry points:**
+- `index.js` — long-polling mode (local development)
+- `functions.js` — Firebase Cloud Functions webhook (production)
+- `app/setupBot.js` — registers all handlers on a bot instance (single source of truth for both entry points)
 
 **Request flow:**
 
 ```
 User message/callback
-  → index.js  (registers handlers)
-    → app/commands/start.js     /start
-    → app/commands/search.js    /search <query>  →  app/api.js → WP REST API
-    → app/handlers/callbacks.js coin_<id> / add_<id>  →  app/api.js → custom WP API
+  → index.js / functions.js
+    → app/setupBot.js
+      → app/commands/start.js       /start
+      → app/commands/search.js      /search <query>      → app/api.js
+      → app/commands/collection.js  /collection          → app/withAuth.js → app/api.js
+      → app/commands/login.js       /login, /logout
+      → app/handlers/callbacks.js   coin_<id> / add_<id> / gallery_<id>  → app/api.js
 ```
 
-**`app/api.js`** — all HTTP calls (native `fetch`, Node 20+):
+**`app/api.js`** — all HTTP calls (native `fetch`, Node 22+):
 - `searchCoins(query)` — GraphQL `coins(where:{search})` query
-- `getPriceHistory(coinId)` — GraphQL `coin(id, idType:DATABASE_ID) { priceHistory }` query
-- `getCollection()` — `GET {API_BASE}/collection` (Basic Auth, REST)
-- `addToCollection(coinId)` — `POST {API_BASE}/collection` (Basic Auth, REST)
+- `getPriceHistory(coinId)` — GraphQL `coin(id, idType:DATABASE_ID) { priceHistory }`
+- `getCoinGallery(coinId)` — GraphQL `coin(id, idType:DATABASE_ID) { gallery { medium } }`
+- `loginUser(username, password)` — GraphQL mutation `login` → `{ authToken, refreshToken }`
+- `logoutUser(authToken)` — GraphQL mutation `logout`
+- `refreshAuthToken(refreshToken)` — GraphQL mutation `refreshJwtAuthToken`
+- `getCollection(authToken)` — GraphQL `myCollection` (Bearer auth)
+- `addToCollection(coinId, authToken)` — GraphQL mutation `addToCollection` (Bearer auth)
 
-`API_BASE_URL` points to the custom namespace (`/wp-json/coins/v1`). The GraphQL endpoint (`/graphql`) is derived by stripping `/wp-json/coins/v1` from it.
+`API_BASE_URL` is the GraphQL endpoint (e.g. `https://coins.cybers.pro/graphql`).
 
-**`app/handlers/callbacks.js`** — two callback-query handlers matched by regex:
-- `coin_(\d+)`: fetches price history and collection status in parallel try/catch blocks, replies with a new coin-card message. The coin title is extracted from the clicked button's text in the search results keyboard.
-- `add_(\d+)`: POSTs to collection, then edits the coin-card message in-place (falls back to a new reply if the message is too old to edit).
+**`app/withAuth.js`** — wraps authenticated API calls with automatic JWT refresh on expiry. On auth error, uses `refreshToken` from session to get a new `authToken` and retries once.
+
+**`app/session.js`** — in-memory `Map` keyed by Telegram `userId`:
+- `{ state, username, authToken, refreshToken }`
+- Session is lost on process restart (Cloud Functions cold start)
+
+**`app/handlers/callbacks.js`** — three callback-query handlers:
+- `coin_(\d+)`: fetches price history + collection status, replies with coin card
+- `add_(\d+)`: adds coin to collection, edits coin-card message in-place
+- `gallery_(\d+)`: fetches `gallery { medium }`, sends up to 5 photos as media group
 
 ## Environment variables
 
 | Variable | Description |
 |---|---|
 | `BOT_TOKEN` | Telegram bot token |
-| `API_BASE_URL` | Custom WP REST namespace, e.g. `https://coins.cybers.pro/wp-json/coins/v1` |
-| `WP_USERNAME` | WordPress username for Basic Auth |
-| `WP_APP_PASSWORD` | WordPress Application Password for Basic Auth |
+| `API_BASE_URL` | WPGraphQL endpoint, e.g. `https://coins.cybers.pro/graphql` |
 
-See `.env.example` for the template.
+`BOT_TOKEN` is stored in Firebase Secret Manager for production.
 
 ## Code style
 
 - CommonJS (`require`/`module.exports`), no ESM
 - Single quotes, 2-space indent, trailing commas, semicolons (enforced by Biome)
-- `parse_mode: 'HTML'` throughout — use `escapeHtml()` from the relevant module before interpolating user/API data
+- `parse_mode: 'HTML'` throughout — use `escapeHtml()` from `app/utils.js` before interpolating user/API data
 - User-facing messages are in Ukrainian
-- Node.js 20 required (see `.nvmrc`)
+- Node.js 22 required (see `engines.node` in `package.json`)

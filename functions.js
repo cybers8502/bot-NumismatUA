@@ -6,12 +6,7 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret, defineString } = require('firebase-functions/params');
 const { Bot, webhookCallback } = require('grammy');
-const { handleStart } = require('./app/commands/start');
-const { handleSearch } = require('./app/commands/search');
-const {
-  handleCoinCallback,
-  handleAddCallback,
-} = require('./app/handlers/callbacks');
+const { setupBot } = require('./app/setupBot');
 
 const botToken = defineSecret('BOT_TOKEN');
 const wpAppPassword = defineSecret('WP_APP_PASSWORD');
@@ -25,13 +20,7 @@ let handler = null;
 function getHandler() {
   if (!handler) {
     const bot = new Bot(botToken.value());
-    bot.command('start', handleStart);
-    bot.command('search', handleSearch);
-    bot.callbackQuery(/^coin_(\d+)$/, handleCoinCallback);
-    bot.callbackQuery(/^add_(\d+)$/, handleAddCallback);
-    bot.catch((err) => {
-      console.error('Bot error:', err.message, err.ctx?.update);
-    });
+    setupBot(bot);
     handler = webhookCallback(bot, 'express');
   }
   return handler;

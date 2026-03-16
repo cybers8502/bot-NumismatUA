@@ -1,14 +1,15 @@
 'use strict';
 
 const { InlineKeyboard } = require('grammy');
-const { getPriceHistory, getCollection, addToCollection } = require('../api');
-
-function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+const {
+  getPriceHistory,
+  getCoinGallery,
+  getCollection,
+  addToCollection,
+} = require('../api');
+const { getAuthToken } = require('../session');
+const { withAuth } = require('../withAuth');
+const { escapeHtml } = require('../utils');
 
 function formatDate(dateStr) {
   const d = new Date(dateStr);
@@ -36,6 +37,7 @@ async function handleCoinCallback(ctx) {
 
   const coinId = ctx.match[1];
   const coinName = getCoinNameFromMessage(ctx, coinId);
+  const authToken = getAuthToken(ctx.from.id);
 
   // --- Price history ---
   let priceText;
@@ -61,23 +63,31 @@ async function handleCoinCallback(ctx) {
   // --- Collection status ---
   let collectionText;
   let inCollection = false;
-  try {
-    const collection = await getCollection();
-    const entry = Array.isArray(collection)
-      ? collection.find((item) => String(item.coin_id) === String(coinId))
-      : null;
+  if (authToken) {
+    try {
+      const collection = await withAuth(ctx.from.id, getCollection);
+      const entry = Array.isArray(collection)
+        ? collection.find((item) => String(item.coin_id) === String(coinId))
+        : null;
 
-    if (entry) {
-      inCollection = true;
-      const qty = entry.quantity ?? 1;
-      const paid = entry.paid ?? 0;
-      collectionText = `✅ <b>В колекції</b> (кількість: ${qty}, сплачено: ${paid} грн)`;
-    } else {
-      collectionText = '➕ Не в колекції';
+      if (entry) {
+        inCollection = true;
+        const qty = entry.quantity ?? 1;
+        const paid = entry.paid ?? 0;
+        collectionText = `✅ <b>В колекції</b> (кількість: ${qty}, сплачено: ${paid} грн)`;
+      } else {
+        collectionText = '➕ Не в колекції';
+      }
+    } catch (err) {
+      console.error(
+        '[callbacks] getCollection failed:',
+        err.message,
+        err.stack,
+      );
+      collectionText = '📋 Не вдалося перевірити колекцію';
     }
-  } catch (err) {
-    console.error('[callbacks] getCollection failed:', err.message, err.stack);
-    collectionText = '📋 Не вдалося перевірити колекцію';
+  } else {
+    collectionText = '🔐 <a href="/login">Увійдіть</a> щоб бачити колекцію';
   }
 
   const text =
@@ -87,7 +97,7 @@ async function handleCoinCallback(ctx) {
     `${collectionText}`;
 
   const keyboard = new InlineKeyboard();
-  if (!inCollection) {
+  if (authToken && !inCollection) {
     keyboard.text('➕ Додати до колекції', `add_${coinId}`);
   }
 
@@ -98,9 +108,17 @@ async function handleAddCallback(ctx) {
   await ctx.answerCallbackQuery();
 
   const coinId = ctx.match[1];
+  const authToken = getAuthToken(ctx.from.id);
+
+  if (!authToken) {
+    await ctx.reply('⚠️ Спочатку увійдіть в акаунт командою /login');
+    return;
+  }
 
   try {
-    await addToCollection(Number(coinId));
+    await withAuth(ctx.from.id, (token) =>
+      addToCollection(Number(coinId), token),
+    );
   } catch (err) {
     console.error(
       '[callbacks] addToCollection failed:',
@@ -126,4 +144,40 @@ async function handleAddCallback(ctx) {
   }
 }
 
-module.exports = { handleCoinCallback, handleAddCallback };
+async function handleGalleryCallback(ctx) {
+  await ctx.answerCallbackQuery();
+
+  const coinId = ctx.match[1];
+  let photos;
+  try {
+    photos = await getCoinGallery(coinId);
+  } catch (err) {
+    console.error('[callbacks] getCoinGallery failed:', err.message);
+    await ctx.reply('⚠️ Не вдалося завантажити фото.');
+    return;
+  }
+
+  const urls = photos
+    .map((p) => p.medium)
+    .filter(Boolean)
+    .slice(0, 5);
+  if (!urls.length) {
+    await ctx.reply('📷 Фото для цієї монети відсутні.');
+    return;
+  }
+
+  if (urls.length === 1) {
+    await ctx.replyWithPhoto(urls[0]);
+    return;
+  }
+
+  await ctx.replyWithMediaGroup(
+    urls.map((url) => ({ type: 'photo', media: url })),
+  );
+}
+
+module.exports = {
+  handleCoinCallback,
+  handleAddCallback,
+  handleGalleryCallback,
+};

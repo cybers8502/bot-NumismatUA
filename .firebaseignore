@@ -9,3 +9,5 @@ cloudbuild.yaml
 tests/
 *.log
 logs/
+.idea/
+CLAUDE.md

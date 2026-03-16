@@ -2,6 +2,7 @@
 
 const { InlineKeyboard } = require('grammy');
 const { searchCoins } = require('../api');
+const { escapeHtml } = require('../utils');
 
 function getCoinTitle(coin) {
   return coin.title?.rendered || coin.name || `Монета #${coin.id}`;
@@ -40,7 +41,9 @@ async function handleSearch(ctx) {
 
   for (const coin of coins) {
     const title = getCoinTitle(coin);
-    const keyboard = new InlineKeyboard().text(title, `coin_${coin.id}`);
+    const keyboard = new InlineKeyboard()
+      .text(title, `coin_${coin.id}`)
+      .text('🖼 Фото', `gallery_${coin.id}`);
     if (coin.photo) {
       await ctx.replyWithPhoto(coin.photo, {
         caption: title,
@@ -50,13 +53,6 @@ async function handleSearch(ctx) {
       await ctx.reply(title, { reply_markup: keyboard });
     }
   }
-}
-
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 module.exports = { handleSearch };

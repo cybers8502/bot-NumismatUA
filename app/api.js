@@ -6,11 +6,8 @@ function getGraphqlUrl() {
   return url;
 }
 
-function basicAuthHeader() {
-  const credentials = Buffer.from(
-    `${process.env.WP_USERNAME}:${process.env.WP_APP_PASSWORD}`,
-  ).toString('base64');
-  return `Basic ${credentials}`;
+function bearerHeader(authToken) {
+  return `Bearer ${authToken}`;
 }
 
 async function gql(query, variables = {}, extraHeaders = {}) {
@@ -83,7 +80,58 @@ async function getPriceHistory(coinId) {
   return data.coin?.priceHistory ?? [];
 }
 
-async function getCollection() {
+/**
+ * Authenticates with WordPress via GraphQL mutation.
+ * Returns { authToken, refreshToken } on success, throws on failure.
+ */
+async function getCoinGallery(coinId) {
+  const data = await gql(
+    `query GetCoin($id: ID!) {
+      coin(id: $id, idType: DATABASE_ID) {
+        gallery {
+          medium
+        }
+      }
+    }`,
+    { id: String(coinId) },
+  );
+  return data.coin?.gallery ?? [];
+}
+
+async function loginUser(username, password) {
+  const data = await gql(
+    `mutation Login($username: String!, $password: String!) {
+      login(input: { username: $username, password: $password }) {
+        authToken
+        refreshToken
+      }
+    }`,
+    { username, password },
+  );
+  return data.login;
+}
+
+async function logoutUser(authToken) {
+  await gql(
+    `mutation { logout(input: {}) { success } }`,
+    {},
+    { Authorization: bearerHeader(authToken) },
+  );
+}
+
+async function refreshAuthToken(refreshToken) {
+  const data = await gql(
+    `mutation RefreshToken($token: String!) {
+      refreshJwtAuthToken(input: { jwtRefreshToken: $token }) {
+        authToken
+      }
+    }`,
+    { token: refreshToken },
+  );
+  return data.refreshJwtAuthToken.authToken;
+}
+
+async function getCollection(authToken) {
   const data = await gql(
     `query {
       myCollection {
@@ -93,7 +141,7 @@ async function getCollection() {
       }
     }`,
     {},
-    { Authorization: basicAuthHeader() },
+    { Authorization: bearerHeader(authToken) },
   );
   return data.myCollection.map((item) => ({
     coin_id: item.coinId,
@@ -102,21 +150,25 @@ async function getCollection() {
   }));
 }
 
-async function addToCollection(coinId) {
+async function addToCollection(coinId, authToken) {
   await gql(
     `mutation AddToCollection($coinId: Int!) {
-      addToCollection(coinId: $coinId) {
+      addToCollection(input: { coinId: $coinId }) {
         success
       }
     }`,
     { coinId: Number(coinId) },
-    { Authorization: basicAuthHeader() },
+    { Authorization: bearerHeader(authToken) },
   );
 }
 
 module.exports = {
   searchCoins,
   getPriceHistory,
+  getCoinGallery,
+  loginUser,
+  logoutUser,
+  refreshAuthToken,
   getCollection,
   addToCollection,
 };
