@@ -39,7 +39,7 @@ User message/callback
       → app/commands/search.js      /search <query>  → app/api.js
       → app/commands/collection.js  /collection      → app/withAuth.js → app/api.js
       → app/commands/login.js       /login, /logout
-      → app/handlers/callbacks.js   coin_<id> / add_<id> / gallery_<id> → app/api.js
+      → app/handlers/callbacks.js   coin_<id> / add_<id> / gallery_<id> / chart_<id> → app/api.js
 ```
 
 **`app/api.js`** — all GraphQL calls via native `fetch` (Node 22+):
@@ -59,6 +59,7 @@ User message/callback
 - `coin_(\d+)`: price history + collection status → coin card message
 - `add_(\d+)`: add to collection, edits existing message in-place
 - `gallery_(\d+)`: sends up to 5 photos as media group
+- `chart_(\d+)`: renders `getPriceHistory` as a line chart via `app/chart.js` (QuickChart.io short-URL API) and sends it as a photo
 
 ## Environment variables
 
