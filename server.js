@@ -1,14 +1,20 @@
 'use strict';
 
-// HTTP server for Cloud Run (webhook mode).
-// Local development uses index.js (long-polling).
+require('dotenv').config({
+  path: `.env.${process.env.NODE_ENV || 'production'}`,
+});
 
 const express = require('express');
-const { telegramWebhook } = require('./functions');
+const { Bot, webhookCallback } = require('grammy');
+const { setupBot } = require('./app/setupBot');
+
+const bot = new Bot(process.env.BOT_TOKEN);
+setupBot(bot);
 
 const app = express();
 app.use(express.json());
-app.post('/', telegramWebhook);
+app.get('/health', (_req, res) => res.send('ok'));
+app.post('/webhook', webhookCallback(bot, 'express'));
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 3001;
 app.listen(port, () => console.log(`Listening on port ${port}`));

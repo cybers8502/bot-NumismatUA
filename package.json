@@ -2,12 +2,11 @@
   "name": "bukovel-search-coin-telegram-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "functions.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "polling": "NODE_ENV=production node index.js",
     "dev": "NODE_ENV=development node index.js",
-    "deploy": "firebase deploy --only functions:numismatWebhook --project my-budget-eb39d",
     "prepare": "node -e \"if (!process.env.CI) require('child_process').execSync('husky', {stdio:'inherit'})\" || true"
   },
   "keywords": [
@@ -39,7 +38,6 @@
   "dependencies": {
     "dotenv": "^16.3.1",
     "express": "^5.1.0",
-    "firebase-functions": "^7.1.1",
     "grammy": "^1.38.2",
     "winston": "^3.17.0"
   },

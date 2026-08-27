@@ -31,7 +31,7 @@ async function gql(query, variables = {}, extraHeaders = {}) {
   let json;
   try {
     json = JSON.parse(rawText);
-  } catch (e) {
+  } catch {
     console.error('[api] Failed to parse JSON:', rawText);
     throw new Error('Invalid JSON response');
   }
@@ -52,6 +52,7 @@ async function searchCoins(query) {
         nodes {
           databaseId
           title
+          shortTitle
         }
       }
     }`,
@@ -90,12 +91,38 @@ async function getCoinGallery(coinId) {
       coin(id: $id, idType: DATABASE_ID) {
         gallery {
           medium
+          url
         }
       }
     }`,
     { id: String(coinId) },
   );
   return data.coin?.gallery ?? [];
+}
+
+async function getCoinDetails(coinId) {
+  const data = await gql(
+    `query GetCoinDetails($id: ID!) {
+      coin(id: $id, idType: DATABASE_ID) {
+        databaseId
+        title
+        shortTitle
+        coinTypes            { nodes { name } }
+        coinSeriesList       { nodes { name } }
+        coinDenominations    { nodes { name } }
+        coinMaterials        { nodes { name } }
+        coinQualities        { nodes { name } }
+        coinEdges            { nodes { name } }
+        coinDiameters        { nodes { name } }
+        coinMintagesDeclared { nodes { name } }
+        coinMintagesActual   { nodes { name } }
+        coinColors           { nodes { name } }
+        coinPackagings       { nodes { name } }
+      }
+    }`,
+    { id: String(coinId) },
+  );
+  return data.coin;
 }
 
 async function loginUser(username, password) {
@@ -166,6 +193,7 @@ module.exports = {
   searchCoins,
   getPriceHistory,
   getCoinGallery,
+  getCoinDetails,
   loginUser,
   logoutUser,
   refreshAuthToken,

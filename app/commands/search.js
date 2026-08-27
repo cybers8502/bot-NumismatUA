@@ -41,9 +41,7 @@ async function handleSearch(ctx) {
 
   for (const coin of coins) {
     const title = getCoinTitle(coin);
-    const keyboard = new InlineKeyboard()
-      .text(title, `coin_${coin.id}`)
-      .text('🖼 Фото', `gallery_${coin.id}`);
+    const keyboard = new InlineKeyboard().text(title, `coin_${coin.id}`);
     if (coin.photo) {
       await ctx.replyWithPhoto(coin.photo, {
         caption: title,

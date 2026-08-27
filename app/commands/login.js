@@ -10,6 +10,7 @@ const {
 } = require('../session');
 const { escapeHtml } = require('../utils');
 const { loginUser, logoutUser } = require('../api');
+const { decodeJwtExp } = require('../withAuth');
 
 async function handleLogin(ctx) {
   const userId = ctx.from.id;
@@ -47,6 +48,7 @@ async function handleLogoutCallback(ctx) {
       console.error('[login] logoutUser failed:', err.message);
     }
   }
+  console.log('[login] userId', ctx.from.id, '— logout, clearing session');
   clearSession(ctx.from.id);
   await ctx.reply('👋 Ви вийшли з системи.');
 }
@@ -95,6 +97,16 @@ async function handleAuthMessage(ctx) {
       authToken,
       refreshToken,
     });
+    console.log(
+      '[login] userId',
+      userId,
+      'username',
+      session.username,
+      '— authToken exp:',
+      decodeJwtExp(authToken) ?? 'unknown',
+      '| refreshToken exp:',
+      decodeJwtExp(refreshToken) ?? 'unknown',
+    );
     await ctx.reply(
       `✅ Авторизовано як <b>${escapeHtml(session.username)}</b>!`,
       { parse_mode: 'HTML' },

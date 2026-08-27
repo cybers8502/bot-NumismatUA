@@ -4,6 +4,7 @@ const { InlineKeyboard } = require('grammy');
 const {
   getPriceHistory,
   getCoinGallery,
+  getCoinDetails,
   getCollection,
   addToCollection,
 } = require('../api');
@@ -25,6 +26,30 @@ function formatDate(dateStr) {
  * Extract coin title from the inline keyboard of the search results message.
  * The button that was pressed carries both text (title) and callback_data.
  */
+function formatCoinDetails(coin) {
+  const fields = [
+    ['Тип', coin.coinTypes],
+    ['Серія', coin.coinSeriesList],
+    ['Номінал', coin.coinDenominations],
+    ['Матеріал', coin.coinMaterials],
+    ['Якість', coin.coinQualities],
+    ['Гурт', coin.coinEdges],
+    ['Діаметр', coin.coinDiameters],
+    ['Тираж (оголош.)', coin.coinMintagesDeclared],
+    ['Тираж (факт.)', coin.coinMintagesActual],
+    ['Кольоровість', coin.coinColors],
+    ['Пакування', coin.coinPackagings],
+  ];
+
+  return fields
+    .map(([label, tax]) => {
+      const names = tax?.nodes?.map((n) => n.name).filter(Boolean) ?? [];
+      return names.length ? `${label}: ${names.join(', ')}` : null;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
 function getCoinNameFromMessage(ctx, coinId) {
   const buttons =
     ctx.callbackQuery.message?.reply_markup?.inline_keyboard?.flat() ?? [];
@@ -58,6 +83,15 @@ async function handleCoinCallback(ctx) {
       err.stack,
     );
     priceText = '<b>Ціна:</b> не вдалося отримати';
+  }
+
+  // --- Coin details ---
+  let detailsText = '';
+  try {
+    const coin = await getCoinDetails(coinId);
+    detailsText = formatCoinDetails(coin);
+  } catch (err) {
+    console.error('[callbacks] getCoinDetails failed:', err.message);
   }
 
   // --- Collection status ---
@@ -94,12 +128,14 @@ async function handleCoinCallback(ctx) {
     `🪙 <b>${escapeHtml(coinName)}</b>\n` +
     `<b>ID:</b> ${coinId}\n\n` +
     `${priceText}\n\n` +
+    (detailsText ? `${detailsText}\n\n` : '') +
     `${collectionText}`;
 
   const keyboard = new InlineKeyboard();
   if (authToken && !inCollection) {
     keyboard.text('➕ Додати до колекції', `add_${coinId}`);
   }
+  keyboard.text('🖼 Фото', `gallery_${coinId}`);
 
   await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard });
 }
@@ -158,9 +194,9 @@ async function handleGalleryCallback(ctx) {
   }
 
   const urls = photos
-    .map((p) => p.medium)
+    .map((p) => p.medium || p.url)
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, 2);
   if (!urls.length) {
     await ctx.reply('📷 Фото для цієї монети відсутні.');
     return;
