@@ -1,6 +1,10 @@
 'use strict';
 
+const { logEvent } = require('../analytics');
+
 async function handleStart(ctx) {
+  logEvent('start', ctx.from.id);
+
   await ctx.reply(
     '<b>Вітаю у нумізматичному каталозі!</b>\n\n' +
       'Я допоможу вам:\n' +

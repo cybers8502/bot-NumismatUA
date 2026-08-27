@@ -3,6 +3,7 @@
 const { InlineKeyboard } = require('grammy');
 const { searchCoins } = require('../api');
 const { escapeHtml } = require('../utils');
+const { logEvent } = require('../analytics');
 
 function getCoinTitle(coin) {
   return coin.title?.rendered || coin.name || `Монета #${coin.id}`;
@@ -24,6 +25,8 @@ async function handleSearch(ctx) {
     console.error('[search] searchCoins failed:', err.message, err.stack);
     return ctx.reply('⚠️ Не вдалося підключитися до API. Спробуйте пізніше.');
   }
+
+  logEvent('search', ctx.from.id, { query, resultCount: coins?.length ?? 0 });
 
   if (!Array.isArray(coins) || coins.length === 0) {
     return ctx.reply(

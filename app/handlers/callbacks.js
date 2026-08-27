@@ -12,6 +12,7 @@ const { getAuthToken } = require('../session');
 const { withAuth } = require('../withAuth');
 const { escapeHtml } = require('../utils');
 const { buildPriceChartUrl } = require('../chart');
+const { logEvent } = require('../analytics');
 
 function formatDate(dateStr) {
   const d = new Date(dateStr);
@@ -179,6 +180,8 @@ async function handleAddCallback(ctx) {
     await ctx.reply('⚠️ Не вдалося додати до колекції. Спробуйте пізніше.');
     return;
   }
+
+  logEvent('add_to_collection', ctx.from.id, { coinId });
 
   // Edit the coin card message: remove the "Add" button and append success note
   const originalText = ctx.callbackQuery.message?.text || '';

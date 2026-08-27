@@ -3,6 +3,7 @@
 const { handleStart } = require('./commands/start');
 const { handleSearch } = require('./commands/search');
 const { handleCollection } = require('./commands/collection');
+const { handleStats } = require('./commands/stats');
 const {
   handleLogin,
   handleLoginCallback,
@@ -29,6 +30,7 @@ function setupBot(bot) {
   bot.command('search', handleSearch);
   bot.command('collection', handleCollection);
   bot.command('login', handleLogin);
+  bot.command('stats', handleStats);
 
   bot.callbackQuery('auth_login', handleLoginCallback);
   bot.callbackQuery('auth_register', handleRegisterCallback);
@@ -50,6 +52,8 @@ function setupBot(bot) {
     console.error('Bot error:', err.message, err.ctx?.update);
   });
 
+  // /stats is intentionally left out of the public menu — it's gated by
+  // isAdmin() in handleStats, not something regular users need to see.
   bot.api
     .setMyCommands([
       { command: 'start', description: 'Почати роботу' },

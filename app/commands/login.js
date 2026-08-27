@@ -17,6 +17,7 @@ const {
   resetUserPassword,
 } = require('../api');
 const { decodeJwtExp } = require('../withAuth');
+const { logEvent } = require('../analytics');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -56,6 +57,7 @@ async function completeLogin(ctx, userId, username, password) {
     '| refreshToken exp:',
     decodeJwtExp(result.refreshToken) ?? 'unknown',
   );
+  logEvent('login_success', userId, { username });
   await ctx.reply(`✅ Авторизовано як <b>${escapeHtml(username)}</b>!`, {
     parse_mode: 'HTML',
   });
@@ -147,6 +149,7 @@ async function handleAuthMessage(ctx) {
       await completeLogin(ctx, userId, session.username, password);
     } catch (err) {
       console.error('[login] loginUser failed:', session.username, err.message);
+      logEvent('login_fail', userId, { username: session.username });
       setSession(userId, { state: null });
       await ctx.reply(
         '❌ Невірний логін або пароль. Спробуйте ще раз командою /login.',
@@ -199,6 +202,10 @@ async function handleAuthMessage(ctx) {
       await registerUser(regUsername, regEmail, password);
     } catch (err) {
       console.error('[login] registerUser failed:', regUsername, err.message);
+      logEvent('register_fail', userId, {
+        username: regUsername,
+        reason: err.message,
+      });
       setSession(userId, { state: null });
       await ctx.reply(
         `❌ Не вдалося зареєструватися: ${escapeHtml(err.message)}\n\nСпробуйте ще раз командою /login.`,
@@ -206,6 +213,11 @@ async function handleAuthMessage(ctx) {
       );
       return true;
     }
+
+    logEvent('register_success', userId, {
+      username: regUsername,
+      email: regEmail,
+    });
 
     try {
       await completeLogin(ctx, userId, regUsername, password);
@@ -239,6 +251,7 @@ async function handleAuthMessage(ctx) {
       // Fall through to the same generic message regardless — the backend
       // itself obfuscates whether the account exists, to avoid enumeration.
     }
+    logEvent('password_reset_requested', userId, { identifier });
     setSession(userId, { state: 'awaiting_reset_link' });
     await ctx.reply(
       '📧 Якщо такий обліковий запис існує, на пошту надіслано лист із посиланням для відновлення пароля.\n\n' +
@@ -284,6 +297,10 @@ async function handleAuthMessage(ctx) {
         resetLogin,
         err.message,
       );
+      logEvent('password_reset_fail', userId, {
+        username: resetLogin,
+        reason: err.message,
+      });
       setSession(userId, { state: null });
       await ctx.reply(
         `❌ Не вдалося скинути пароль: ${escapeHtml(err.message)}\n\nПочніть спочатку командою /login.`,
@@ -291,6 +308,8 @@ async function handleAuthMessage(ctx) {
       );
       return true;
     }
+
+    logEvent('password_reset_success', userId, { username: resetLogin });
 
     try {
       await completeLogin(ctx, userId, resetLogin, password);
