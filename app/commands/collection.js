@@ -1,9 +1,9 @@
 'use strict';
 
+const { InlineKeyboard } = require('grammy');
 const { getCollection } = require('../api');
 const { getAuthToken } = require('../session');
 const { withAuth } = require('../withAuth');
-const { escapeHtml } = require('../utils');
 
 async function handleCollection(ctx) {
   const authToken = getAuthToken(ctx.from.id);
@@ -23,15 +23,18 @@ async function handleCollection(ctx) {
     return ctx.reply('Ваша колекція порожня.');
   }
 
-  const lines = items.map(
-    (item) =>
-      `• <b>${escapeHtml(String(item.coin_id))}</b> — ${item.quantity} шт.${item.paid ? `, сплачено: ${item.paid}` : ''}`,
-  );
+  // Each row is tappable — same coin_<id> callback the search results use —
+  // to open the full coin card (price, details, gallery, chart, and this
+  // item's quantity/paid amount, under "✅ В колекції").
+  const keyboard = new InlineKeyboard();
+  for (const item of items) {
+    keyboard.text(item.title, `coin_${item.coin_id}`).row();
+  }
 
-  await ctx.reply(
-    `<b>Ваша колекція (${items.length}):</b>\n\n${lines.join('\n')}`,
-    { parse_mode: 'HTML' },
-  );
+  await ctx.reply(`<b>Ваша колекція (${items.length}):</b>`, {
+    parse_mode: 'HTML',
+    reply_markup: keyboard,
+  });
 }
 
 module.exports = { handleCollection };

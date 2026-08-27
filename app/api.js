@@ -224,6 +224,7 @@ async function getCollection(authToken) {
     `query {
       myCollection {
         coinId
+        coinTitle
         quantity
         purchasePrice
       }
@@ -233,6 +234,7 @@ async function getCollection(authToken) {
   );
   return data.myCollection.map((item) => ({
     coin_id: item.coinId,
+    title: item.coinTitle || `Монета #${item.coinId}`,
     quantity: item.quantity,
     paid: item.purchasePrice ?? 0,
   }));
