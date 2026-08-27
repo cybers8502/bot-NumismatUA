@@ -24,6 +24,17 @@ function formatDate(dateStr) {
 }
 
 /**
+ * Returns an arrow reflecting how `current` compares to `previous`
+ * (the price one entry before it), or '' if there's nothing to compare to.
+ */
+function priceTrendArrow(current, previous) {
+  if (previous === undefined || previous === null) return '';
+  if (current > previous) return ' 🔼';
+  if (current < previous) return ' 🔽';
+  return '';
+}
+
+/**
  * Extract coin title from the inline keyboard of the search results message.
  * The button that was pressed carries both text (title) and callback_data.
  */
@@ -70,10 +81,12 @@ async function handleCoinCallback(ctx) {
   try {
     const history = await getPriceHistory(coinId);
     if (Array.isArray(history) && history.length > 0) {
-      const latest = history
+      const sorted = history
         .slice()
-        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-      priceText = `<b>Остання відома ціна:</b> ${escapeHtml(latest.price)} грн (${formatDate(latest.date)})`;
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      const [latest, previous] = sorted;
+      const trend = priceTrendArrow(latest.price, previous?.price);
+      priceText = `<b>Остання відома ціна:</b> ${escapeHtml(latest.price)} грн${trend} (${formatDate(latest.date)})`;
     } else {
       priceText = '<b>Ціна:</b> невідома';
     }
