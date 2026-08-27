@@ -90,7 +90,7 @@ async function handleLoginCallback(ctx) {
   await ctx.answerCallbackQuery();
   const userId = ctx.from.id;
   setSession(userId, { state: 'awaiting_username' });
-  await ctx.reply('Введіть ваш логін WordPress:');
+  await ctx.reply('Введіть ваш логін:');
 }
 
 async function handleRegisterCallback(ctx) {
@@ -135,7 +135,7 @@ async function handleAuthMessage(ctx) {
   if (session.state === 'awaiting_username') {
     const username = ctx.message.text.trim();
     setSession(userId, { state: 'awaiting_password', username });
-    await ctx.reply('Введіть пароль застосунку WordPress:');
+    await ctx.reply('Введіть пароль застосунку:');
     return true;
   }
 
