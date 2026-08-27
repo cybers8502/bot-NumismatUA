@@ -1,5 +1,3 @@
-'use strict';
-
 function getGraphqlUrl() {
   const url = process.env.API_BASE_URL;
   if (!url) throw new Error('API_BASE_URL environment variable is not set');
@@ -140,6 +138,36 @@ async function getPriceHistory(coinId) {
     { id: String(coinId) },
   );
   return data.coin?.priceHistory ?? [];
+}
+
+/**
+ * Aggregated price-dynamics stats (latest price/trend, comparison against the
+ * last-known NBU shop price, min/max/delta over `days` or all time) — computed
+ * server-side over the same coin_price data as getPriceHistory(), see
+ * Coin.priceStats in the wp-coins theme's inc/GraphQL/CoinGraphQL.php.
+ */
+async function getPriceStats(coinId, days) {
+  const data = await gql(
+    `query GetPriceStats($id: ID!, $days: Int) {
+      coin(id: $id, idType: DATABASE_ID) {
+        priceStats(days: $days) {
+          latestPrice
+          latestDate
+          trend
+          nbuPrice
+          nbuDate
+          vsNbuPct
+          periodStart
+          periodEnd
+          periodDeltaPct
+          periodMin
+          periodMax
+        }
+      }
+    }`,
+    { id: String(coinId), days: days ?? null },
+  );
+  return data.coin?.priceStats ?? null;
 }
 
 /**
@@ -291,6 +319,7 @@ async function addToCollection(coinId, authToken) {
 module.exports = {
   searchCoins,
   getPriceHistory,
+  getPriceStats,
   getCoinGallery,
   getCoinDetails,
   loginUser,

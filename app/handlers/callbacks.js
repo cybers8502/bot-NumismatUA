@@ -1,8 +1,7 @@
-'use strict';
-
 const { InlineKeyboard } = require('grammy');
 const {
   getPriceHistory,
+  getPriceStats,
   getCoinGallery,
   getCoinDetails,
   getCollection,
@@ -25,13 +24,11 @@ function formatDate(dateStr) {
 }
 
 /**
- * Returns an arrow reflecting how `current` compares to `previous`
- * (the price one entry before it), or '' if there's nothing to compare to.
+ * Arrow for a priceStats.trend value ('up' | 'down' | 'flat' | null).
  */
-function priceTrendArrow(current, previous) {
-  if (previous === undefined || previous === null) return '';
-  if (current > previous) return ' 🔼';
-  if (current < previous) return ' 🔽';
+function trendArrow(trend) {
+  if (trend === 'up') return ' 🔼';
+  if (trend === 'down') return ' 🔽';
   return '';
 }
 
@@ -77,26 +74,17 @@ async function handleCoinCallback(ctx) {
   const coinName = getCoinNameFromMessage(ctx, coinId);
   const authToken = getAuthToken(ctx.from.id);
 
-  // --- Price history ---
+  // --- Price stats (latest price + trend, computed server-side) ---
   let priceText;
   try {
-    const history = await getPriceHistory(coinId);
-    if (Array.isArray(history) && history.length > 0) {
-      const sorted = history
-        .slice()
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-      const [latest, previous] = sorted;
-      const trend = priceTrendArrow(latest.price, previous?.price);
-      priceText = `<b>Остання відома ціна:</b> ${escapeHtml(latest.price)} грн${trend} (${formatDate(latest.date)})`;
+    const stats = await getPriceStats(coinId);
+    if (stats && stats.latestPrice != null) {
+      priceText = `<b>Остання відома ціна:</b> ${escapeHtml(stats.latestPrice)} грн${trendArrow(stats.trend)} (${formatDate(stats.latestDate)})`;
     } else {
       priceText = '<b>Ціна:</b> невідома';
     }
   } catch (err) {
-    console.error(
-      '[callbacks] getPriceHistory failed:',
-      err.message,
-      err.stack,
-    );
+    console.error('[callbacks] getPriceStats failed:', err.message, err.stack);
     priceText = '<b>Ціна:</b> не вдалося отримати';
   }
 
@@ -257,7 +245,49 @@ async function handleChartCallback(ctx) {
     return;
   }
 
-  await ctx.replyWithPhoto(chartUrl);
+  // Caption with the same stats a priceStats-driven widget would show
+  // (see priceStats in the wp-coins theme) — best-effort, chart still
+  // sends without it if this fetch fails.
+  let caption;
+  try {
+    caption = buildChartCaption(await getPriceStats(coinId));
+  } catch (err) {
+    console.error('[callbacks] getPriceStats failed:', err.message);
+  }
+
+  await ctx.replyWithPhoto(
+    chartUrl,
+    caption ? { caption, parse_mode: 'HTML' } : undefined,
+  );
+}
+
+function formatPct(pct) {
+  if (pct === null || pct === undefined) return null;
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+}
+
+function buildChartCaption(stats) {
+  if (!stats || stats.latestPrice == null) return null;
+
+  const lines = [
+    `📈 <b>Динаміка ціни</b>`,
+    `Зараз: ${escapeHtml(stats.latestPrice)} грн${trendArrow(stats.trend)}`,
+  ];
+
+  if (stats.nbuPrice != null) {
+    lines.push(`Ціна НБУ (остання відома): ${escapeHtml(stats.nbuPrice)} грн`);
+    const vsNbu = formatPct(stats.vsNbuPct);
+    if (vsNbu) lines.push(`Ринок до НБУ: ${vsNbu}`);
+  }
+
+  const periodPct = formatPct(stats.periodDeltaPct);
+  if (periodPct && stats.periodMin != null && stats.periodMax != null) {
+    lines.push(
+      `За період: ${periodPct} (мін ${escapeHtml(stats.periodMin)} · макс ${escapeHtml(stats.periodMax)})`,
+    );
+  }
+
+  return lines.join('\n');
 }
 
 module.exports = {
