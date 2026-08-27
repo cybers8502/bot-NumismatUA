@@ -6,6 +6,8 @@ const { handleCollection } = require('./commands/collection');
 const {
   handleLogin,
   handleLoginCallback,
+  handleRegisterCallback,
+  handleForgotPasswordCallback,
   handleLogoutCallback,
   handleAuthMessage,
 } = require('./commands/login');
@@ -29,6 +31,8 @@ function setupBot(bot) {
   bot.command('login', handleLogin);
 
   bot.callbackQuery('auth_login', handleLoginCallback);
+  bot.callbackQuery('auth_register', handleRegisterCallback);
+  bot.callbackQuery('auth_forgot_password', handleForgotPasswordCallback);
   bot.callbackQuery('auth_logout', handleLogoutCallback);
   bot.callbackQuery(/^coin_(\d+)$/, handleCoinCallback);
   bot.callbackQuery(/^add_(\d+)$/, handleAddCallback);

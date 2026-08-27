@@ -199,6 +199,42 @@ async function loginUser(username, password) {
   return data.login;
 }
 
+async function registerUser(username, email, password) {
+  const data = await gql(
+    `mutation RegisterUser($username: String!, $email: String, $password: String) {
+      registerUser(input: { username: $username, email: $email, password: $password }) {
+        user { databaseId }
+      }
+    }`,
+    { username, email, password },
+  );
+  return data.registerUser.user;
+}
+
+async function sendPasswordResetEmail(usernameOrEmail) {
+  const data = await gql(
+    `mutation SendPasswordResetEmail($username: String!) {
+      sendPasswordResetEmail(input: { username: $username }) {
+        success
+      }
+    }`,
+    { username: usernameOrEmail },
+  );
+  return data.sendPasswordResetEmail.success;
+}
+
+async function resetUserPassword(key, login, password) {
+  const data = await gql(
+    `mutation ResetUserPassword($key: String!, $login: String!, $password: String!) {
+      resetUserPassword(input: { key: $key, login: $login, password: $password }) {
+        user { databaseId }
+      }
+    }`,
+    { key, login, password },
+  );
+  return data.resetUserPassword.user;
+}
+
 async function logoutUser(authToken) {
   await gql(
     `mutation { logout(input: {}) { success } }`,
@@ -258,6 +294,9 @@ module.exports = {
   getCoinGallery,
   getCoinDetails,
   loginUser,
+  registerUser,
+  sendPasswordResetEmail,
+  resetUserPassword,
   logoutUser,
   refreshAuthToken,
   getCollection,
