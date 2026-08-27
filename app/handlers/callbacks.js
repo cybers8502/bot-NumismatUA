@@ -11,6 +11,7 @@ const {
 const { getAuthToken } = require('../session');
 const { withAuth } = require('../withAuth');
 const { escapeHtml } = require('../utils');
+const { buildPriceChartUrl } = require('../chart');
 
 function formatDate(dateStr) {
   const d = new Date(dateStr);
@@ -136,6 +137,7 @@ async function handleCoinCallback(ctx) {
     keyboard.text('➕ Додати до колекції', `add_${coinId}`);
   }
   keyboard.text('🖼 Фото', `gallery_${coinId}`);
+  keyboard.text('📈 Графік ціни', `chart_${coinId}`);
 
   await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard });
 }
@@ -212,8 +214,39 @@ async function handleGalleryCallback(ctx) {
   );
 }
 
+async function handleChartCallback(ctx) {
+  await ctx.answerCallbackQuery();
+
+  const coinId = ctx.match[1];
+  let history;
+  try {
+    history = await getPriceHistory(coinId);
+  } catch (err) {
+    console.error('[callbacks] getPriceHistory failed:', err.message);
+    await ctx.reply('⚠️ Не вдалося завантажити історію цін.');
+    return;
+  }
+
+  let chartUrl;
+  try {
+    chartUrl = await buildPriceChartUrl(history);
+  } catch (err) {
+    console.error('[callbacks] buildPriceChartUrl failed:', err.message);
+    await ctx.reply('⚠️ Не вдалося побудувати графік.');
+    return;
+  }
+
+  if (!chartUrl) {
+    await ctx.reply('📈 Замало даних для графіка ціни цієї монети.');
+    return;
+  }
+
+  await ctx.replyWithPhoto(chartUrl);
+}
+
 module.exports = {
   handleCoinCallback,
   handleAddCallback,
   handleGalleryCallback,
+  handleChartCallback,
 };

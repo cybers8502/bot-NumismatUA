@@ -13,6 +13,7 @@ const {
   handleCoinCallback,
   handleAddCallback,
   handleGalleryCallback,
+  handleChartCallback,
 } = require('./handlers/callbacks');
 
 /**
@@ -32,6 +33,7 @@ function setupBot(bot) {
   bot.callbackQuery(/^coin_(\d+)$/, handleCoinCallback);
   bot.callbackQuery(/^add_(\d+)$/, handleAddCallback);
   bot.callbackQuery(/^gallery_(\d+)$/, handleGalleryCallback);
+  bot.callbackQuery(/^chart_(\d+)$/, handleChartCallback);
 
   bot.on('message:text', async (ctx) => {
     const handled = await handleAuthMessage(ctx);
