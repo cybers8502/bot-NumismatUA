@@ -10,18 +10,79 @@ function bearerHeader(authToken) {
   return `Bearer ${authToken}`;
 }
 
-async function gql(query, variables = {}, extraHeaders = {}) {
+// --- Anonymous app token -----------------------------------------------
+// wp-coins requires an X-App-Token header on every /graphql request that
+// isn't already authenticated (anti-scraping gate, see Security\ApiGuardService
+// in the wp-coins theme repo). Fetched once, cached in memory, refreshed on 401.
+
+const APP_TOKEN_EXPIRY_BUFFER_MS = 60_000;
+
+let cachedAppToken = null; // { token, expiresAt }
+let appTokenPromise = null;
+
+function getAppTokenUrl() {
+  return getGraphqlUrl().replace(
+    /\/graphql\/?$/,
+    '/wp-json/coins/v1/app-token',
+  );
+}
+
+async function fetchAppToken() {
+  const res = await fetch(getAppTokenUrl());
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch app token: HTTP ${res.status}`);
+  }
+
+  const { token, expires_in } = await res.json();
+  cachedAppToken = {
+    token,
+    expiresAt: Date.now() + expires_in * 1000 - APP_TOKEN_EXPIRY_BUFFER_MS,
+  };
+
+  return cachedAppToken.token;
+}
+
+async function getAppToken() {
+  if (cachedAppToken && cachedAppToken.expiresAt > Date.now()) {
+    return cachedAppToken.token;
+  }
+
+  if (!appTokenPromise) {
+    appTokenPromise = fetchAppToken().finally(() => {
+      appTokenPromise = null;
+    });
+  }
+
+  return appTokenPromise;
+}
+
+// --- GraphQL client -------------------------------------------------------
+
+async function gql(query, variables = {}, extraHeaders = {}, _isRetry = false) {
   const url = getGraphqlUrl();
+  const appToken = await getAppToken();
+
   console.log('[api] GraphQL request →', url, JSON.stringify(variables));
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-App-Token': appToken,
+      ...extraHeaders,
+    },
     body: JSON.stringify({ query, variables }),
   });
 
   const rawText = await res.text();
   console.log('[api] GraphQL response status:', res.status);
+
+  if (res.status === 401 && !_isRetry) {
+    console.log('[api] App token rejected, refreshing and retrying once');
+    cachedAppToken = null;
+    return gql(query, variables, extraHeaders, true);
+  }
 
   if (!res.ok) {
     console.error('[api] HTTP error body:', rawText);
