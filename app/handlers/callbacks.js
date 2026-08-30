@@ -255,10 +255,18 @@ async function handleChartCallback(ctx) {
     console.error('[callbacks] getPriceStats failed:', err.message);
   }
 
-  await ctx.replyWithPhoto(
-    chartUrl,
-    caption ? { caption, parse_mode: 'HTML' } : undefined,
-  );
+  try {
+    await ctx.replyWithPhoto(
+      chartUrl,
+      caption ? { caption, parse_mode: 'HTML' } : undefined,
+    );
+  } catch (err) {
+    // Without this, a rejected photo (bad/expired QuickChart URL, Telegram-side
+    // fetch failure, etc.) fell through to the bot-wide bot.catch(), which only
+    // logs — the user got no reply at all, with no indication anything failed.
+    console.error('[callbacks] replyWithPhoto failed:', err.message);
+    await ctx.reply('⚠️ Не вдалося надіслати графік.');
+  }
 }
 
 function formatPct(pct) {
