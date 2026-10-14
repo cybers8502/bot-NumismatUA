@@ -1,6 +1,7 @@
 'use strict';
 
 const { logEvent } = require('../analytics');
+const { getMainKeyboard } = require('../keyboard');
 
 async function handleStart(ctx) {
   logEvent('start', ctx.from.id);
@@ -12,7 +13,10 @@ async function handleStart(ctx) {
       '  Переглянути деталі монети та актуальну ціну\n' +
       '  Керувати своєю колекцією\n\n' +
       'Спробуйте: <code>/search 1 гривня</code>',
-    { parse_mode: 'HTML' },
+    {
+      parse_mode: 'HTML',
+      reply_markup: getMainKeyboard(),
+    },
   );
 }
 
