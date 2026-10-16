@@ -11,6 +11,7 @@
         "*.local",
         ".env.development",
         "tests",
+        "scripts",
         "docker-compose.yml"
       ]
     }
