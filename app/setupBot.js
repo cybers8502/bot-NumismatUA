@@ -12,6 +12,7 @@ const {
 const { handleApp } = require('./commands/app');
 const { getWebAppUrl } = require('./webapp');
 const { handleStats } = require('./commands/stats');
+const { handleMyChatMember } = require('./handlers/chatMember');
 const {
   handleLogin,
   handleLoginCallback,
@@ -59,6 +60,10 @@ function setupBot(bot) {
   bot.callbackQuery(/^add_(\d+)$/, handleAddCallback);
   bot.callbackQuery(/^gallery_(\d+)$/, handleGalleryCallback);
   bot.callbackQuery(/^chart_(\d+)$/, handleChartCallback);
+
+  // Fires when a user blocks/unblocks the bot; part of Telegram's default
+  // allowed_updates, so no webhook change is needed.
+  bot.on('my_chat_member', handleMyChatMember);
 
   bot.on('message:text', async (ctx) => {
     const handled = await handleAuthMessage(ctx);

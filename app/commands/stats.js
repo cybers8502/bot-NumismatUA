@@ -31,6 +31,7 @@ async function handleStats(ctx) {
     '<b>📊 Статистика бота</b>',
     '',
     `👥 Унікальних користувачів: <b>${summary.uniqueUsers}</b>`,
+    `🚫 Заблокували бота: <b>${summary.blockedUsers}</b>`,
     `🚀 /start: <b>${byType.start ?? 0}</b>`,
     `🔍 Пошуків: <b>${byType.search ?? 0}</b>`,
     `📝 Реєстрацій: <b>${byType.register_success ?? 0}</b> (невдалих: ${byType.register_fail ?? 0})`,

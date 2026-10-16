@@ -68,14 +68,62 @@ async function logEvent(type, userId, meta = {}) {
 }
 
 /**
- * @returns {Promise<{ byType: Record<string, number>, total: number, uniqueUsers: number }>}
+ * Records that a user blocked or unblocked the bot (Telegram `my_chat_member`).
+ * Unlike logEvent this does not touch lastSeen/eventCount — blocking is not
+ * user activity. Admins are skipped, same as logEvent.
+ * @param {number|string} userId Telegram user id
+ * @param {boolean} blocked true = user blocked the bot, false = unblocked it
+ */
+async function setBlockedStatus(userId, blocked) {
+  if (isAdminId(userId)) return;
+  const type = blocked ? 'blocked' : 'unblocked';
+  try {
+    const firestore = getDb();
+    const batch = firestore.batch();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    batch.set(firestore.collection('bot_events').doc(), {
+      type,
+      userId: String(userId),
+      meta: {},
+      createdAt: now,
+    });
+
+    batch.set(
+      firestore.collection('bot_stats').doc('counters'),
+      {
+        [`byType.${type}`]: admin.firestore.FieldValue.increment(1),
+        total: admin.firestore.FieldValue.increment(1),
+      },
+      { merge: true },
+    );
+
+    batch.set(
+      firestore.collection('bot_users').doc(String(userId)),
+      { blocked, blockedStatusAt: now },
+      { merge: true },
+    );
+
+    await batch.commit();
+  } catch (err) {
+    console.error('[analytics] setBlockedStatus failed:', type, err.message);
+  }
+}
+
+/**
+ * @returns {Promise<{ byType: Record<string, number>, total: number, uniqueUsers: number, blockedUsers: number }>}
  */
 async function getStatsSummary() {
   const firestore = getDb();
 
-  const [countersSnap, usersCountSnap] = await Promise.all([
+  const [countersSnap, usersCountSnap, blockedCountSnap] = await Promise.all([
     firestore.collection('bot_stats').doc('counters').get(),
     firestore.collection('bot_users').count().get(),
+    firestore
+      .collection('bot_users')
+      .where('blocked', '==', true)
+      .count()
+      .get(),
   ]);
 
   const counters = countersSnap.exists ? countersSnap.data() : {};
@@ -84,7 +132,8 @@ async function getStatsSummary() {
     byType: counters.byType || {},
     total: counters.total || 0,
     uniqueUsers: usersCountSnap.data().count,
+    blockedUsers: blockedCountSnap.data().count,
   };
 }
 
-module.exports = { logEvent, getStatsSummary };
+module.exports = { logEvent, setBlockedStatus, getStatsSummary };
