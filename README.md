@@ -59,12 +59,12 @@ npm run dev
 ### 1. Секрети (Secret Manager)
 
 ```bash
-firebase functions:secrets:set BOT_TOKEN --project my-budget-eb39d
+firebase functions:secrets:set BOT_TOKEN --project numismat-8502
 ```
 
 ### 2. Змінні середовища
 
-Створи `.env.my-budget-eb39d` (не комітити):
+Створи `.env.numismat-8502` (не комітити):
 
 ```
 API_BASE_URL=https://coins.cybers.pro/graphql
@@ -81,14 +81,14 @@ npm run deploy
 ### 4. Webhook (один раз після першого деплою)
 
 ```
-https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://europe-west3-my-budget-eb39d.cloudfunctions.net/numismatWebhook
+https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://europe-west3-numismat-8502.cloudfunctions.net/numismatWebhook
 ```
 
 ### Корисні команди
 
 ```bash
-firebase functions:list --project my-budget-eb39d
-firebase functions:log --only numismatWebhook --project my-budget-eb39d
+firebase functions:list --project numismat-8502
+firebase functions:log --only numismatWebhook --project numismat-8502
 ```
 
 ## Змінні середовища
