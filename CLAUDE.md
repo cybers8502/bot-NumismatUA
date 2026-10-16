@@ -11,9 +11,6 @@ npm run dev
 # Deploy to production (Firebase Cloud Functions, project numismat-8502)
 npm run deploy
 
-# Standalone Express webhook server (legacy self-hosted path, not used in prod)
-npm start
-
 # Lint & format (Biome handles both)
 npx biome lint .
 npx biome format --write .
@@ -30,14 +27,13 @@ Telegram bot for a Ukrainian numismatic (coin) catalogue backed by a WordPress G
 **Entry points:**
 - `index.js` — long-polling (local development)
 - `functions.js` — Firebase Cloud Functions 2nd gen entry point (**production**); exports `numismatWebhook` (`europe-west3`), a grammY `webhookCallback`. Bot is created lazily on first request; secrets/params are copied into `process.env` per request so `app/api.js` reads them as usual
-- `server.js` — standalone Express webhook server (`PORT`, default `3001`, `POST /webhook`, `GET /health`); legacy self-hosted path, not what is deployed
 - `app/setupBot.js` — registers all handlers; shared by all entry points
 
 **Request flow:**
 
 ```
 User message/callback
-  → index.js (polling) / server.js (webhook)
+  → index.js (polling) / functions.js (webhook)
     → app/setupBot.js
       → app/commands/start.js       /start
       → app/commands/search.js      /search <query>  → app/api.js
@@ -108,8 +104,6 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://europe-west3-nu
 firebase functions:list --project numismat-8502
 firebase functions:log --only numismatWebhook --project numismat-8502
 ```
-
-`nginx.bot.conf` and `server.js` are leftovers of an earlier self-hosted plan (nginx + pm2 on `bot.coins.cybers.pro`); the bot is not deployed that way.
 
 ## Code style
 
