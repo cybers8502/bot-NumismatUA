@@ -9,9 +9,7 @@ const { Bot, webhookCallback } = require('grammy');
 const { setupBot } = require('./app/setupBot');
 
 const botToken = defineSecret('BOT_TOKEN');
-const wpAppPassword = defineSecret('WP_APP_PASSWORD');
 const apiBaseUrl = defineString('API_BASE_URL');
-const wpUsername = defineString('WP_USERNAME');
 const webAppUrl = defineString('WEBAPP_URL', { default: '' });
 const botAdminIds = defineString('BOT_ADMIN_IDS', { default: '' });
 
@@ -31,15 +29,13 @@ function getHandler() {
 exports.numismatWebhook = onRequest(
   {
     region: 'europe-west3',
-    secrets: [botToken, wpAppPassword],
+    secrets: [botToken],
   },
   (req, res) => {
     // Expose plain env vars so app/api.js can read process.env as usual
     process.env.API_BASE_URL = apiBaseUrl.value();
-    process.env.WP_USERNAME = wpUsername.value();
     process.env.WEBAPP_URL = webAppUrl.value();
     process.env.BOT_ADMIN_IDS = botAdminIds.value();
-    process.env.WP_APP_PASSWORD = wpAppPassword.value();
     return getHandler()(req, res);
   },
 );

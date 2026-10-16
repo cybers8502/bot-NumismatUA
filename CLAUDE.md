@@ -83,7 +83,6 @@ Password reset emails a WordPress-generated link pointing at `wp-login.php?actio
 |---|---|
 | `BOT_TOKEN` | Telegram bot token (Secret Manager in prod) |
 | `API_BASE_URL` | WPGraphQL endpoint |
-| `WP_USERNAME` / `WP_APP_PASSWORD` | WordPress application-password credentials (password is a Secret Manager secret in prod) |
 | `WEBAPP_URL` | Public URL of the r-numismat Mini App; unset disables the Mini App button and `/app` |
 | `BOT_ADMIN_IDS` | Comma-separated Telegram IDs allowed to run `/stats`; unset leaves it open (set in `.env.numismat-8502` for prod) |
 
@@ -94,8 +93,8 @@ Copy `.env.example` to `.env.development` for local dev.
 The bot runs as the 2nd-gen function `numismatWebhook` (Node 22, `europe-west3`) in its own GCP/Firebase project **`numismat-8502`** (`.firebaserc`). It is isolated from the unrelated `my-budget-eb39d` project it used to share — don't touch that one.
 
 - **Firestore** `(default)` in `numismat-8502` (`europe-central2`) stores analytics: `bot_events`, `bot_stats/counters`, `bot_users` (see `app/analytics.js`, `/stats`). `firebase-admin` uses the function's default credentials, so no key file is needed.
-- **Secrets** (Secret Manager): `BOT_TOKEN`, `WP_APP_PASSWORD`. Set with `firebase functions:secrets:set <NAME> --project numismat-8502`.
-- **Plain params** come from `.env.numismat-8502` (gitignored): `API_BASE_URL`, `WP_USERNAME`, `WEBAPP_URL`, `BOT_ADMIN_IDS`.
+- **Secrets** (Secret Manager): `BOT_TOKEN`. Set with `firebase functions:secrets:set <NAME> --project numismat-8502`.
+- **Plain params** come from `.env.numismat-8502` (gitignored): `API_BASE_URL`, `WEBAPP_URL`, `BOT_ADMIN_IDS`.
 - **Required APIs:** Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, Secret Manager, Firestore (already enabled).
 - **Image cleanup:** `firebase functions:artifacts:setpolicy --location europe-west3 --project numismat-8502` (already applied, 1 day).
 
