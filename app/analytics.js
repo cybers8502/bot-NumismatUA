@@ -16,12 +16,22 @@ function getDb() {
   return db;
 }
 
+function isAdminId(userId) {
+  return (process.env.BOT_ADMIN_IDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .includes(String(userId));
+}
+
 /**
+ * Events from users listed in BOT_ADMIN_IDS are not recorded.
  * @param {string} type e.g. 'start', 'search', 'register_success', 'login_fail'
  * @param {number|string} userId Telegram user id
  * @param {object} [meta] extra fields to store on the event doc (e.g. { query: '...' })
  */
 async function logEvent(type, userId, meta = {}) {
+  if (isAdminId(userId)) return;
   try {
     const firestore = getDb();
     const batch = firestore.batch();
