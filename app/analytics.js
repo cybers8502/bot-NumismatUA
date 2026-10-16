@@ -46,7 +46,8 @@ async function logEvent(type, userId, meta = {}) {
     batch.set(
       firestore.collection('bot_stats').doc('counters'),
       {
-        [`byType.${type}`]: admin.firestore.FieldValue.increment(1),
+        // Nested map, not a dotted key: set() treats `byType.x` literally.
+        byType: { [type]: admin.firestore.FieldValue.increment(1) },
         total: admin.firestore.FieldValue.increment(1),
       },
       { merge: true },
@@ -92,7 +93,8 @@ async function setBlockedStatus(userId, blocked) {
     batch.set(
       firestore.collection('bot_stats').doc('counters'),
       {
-        [`byType.${type}`]: admin.firestore.FieldValue.increment(1),
+        // Nested map, not a dotted key: set() treats `byType.x` literally.
+        byType: { [type]: admin.firestore.FieldValue.increment(1) },
         total: admin.firestore.FieldValue.increment(1),
       },
       { merge: true },
