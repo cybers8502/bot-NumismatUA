@@ -3,5 +3,4 @@
 .gitignore
 node_modules
 .env.*
-docker-compose.yml
 tests/

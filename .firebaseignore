@@ -2,7 +2,6 @@
 .gitignore
 node_modules
 .env.*
-docker-compose.yml
 .gcloudignore
 .husky
 tests/
