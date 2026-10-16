@@ -109,7 +109,7 @@ firebase functions:list --project numismat-8502
 firebase functions:log --only numismatWebhook --project numismat-8502
 ```
 
-`nginx.bot.conf` and `server.js` are leftovers of an earlier self-hosted plan (nginx + pm2 on `bot.coins.cybers.pro`); the bot is not deployed that way. `cloudbuild.yaml`/`Dockerfile` are from the older Cloud Run setup and are likewise unused.
+`nginx.bot.conf` and `server.js` are leftovers of an earlier self-hosted plan (nginx + pm2 on `bot.coins.cybers.pro`); the bot is not deployed that way.
 
 ## Code style
 
