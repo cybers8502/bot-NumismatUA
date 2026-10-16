@@ -8,7 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Development (long-polling, loads .env.development)
 npm run dev
 
-# Production webhook server (loads .env.production)
+# Deploy to production (Firebase Cloud Functions, project numismat-8502)
+npm run deploy
+
+# Standalone Express webhook server (legacy self-hosted path, not used in prod)
 npm start
 
 # Lint & format (Biome handles both)
@@ -26,8 +29,9 @@ Telegram bot for a Ukrainian numismatic (coin) catalogue backed by a WordPress G
 
 **Entry points:**
 - `index.js` — long-polling (local development)
-- `server.js` — Express webhook server (production); listens on `PORT` (default `3001`), exposes `POST /webhook` and `GET /health`
-- `app/setupBot.js` — registers all handlers; shared by both entry points
+- `functions.js` — Firebase Cloud Functions 2nd gen entry point (**production**); exports `numismatWebhook` (`europe-west3`), a grammY `webhookCallback`. Bot is created lazily on first request; secrets/params are copied into `process.env` per request so `app/api.js` reads them as usual
+- `server.js` — standalone Express webhook server (`PORT`, default `3001`, `POST /webhook`, `GET /health`); legacy self-hosted path, not what is deployed
+- `app/setupBot.js` — registers all handlers; shared by all entry points
 
 **Request flow:**
 
@@ -77,30 +81,36 @@ Password reset emails a WordPress-generated link pointing at `wp-login.php?actio
 
 | Variable | Description |
 |---|---|
-| `BOT_TOKEN` | Telegram bot token |
+| `BOT_TOKEN` | Telegram bot token (Secret Manager in prod) |
 | `API_BASE_URL` | WPGraphQL endpoint |
+| `WP_USERNAME` / `WP_APP_PASSWORD` | WordPress application-password credentials (password is a Secret Manager secret in prod) |
+| `WEBAPP_URL` | Public URL of the r-numismat Mini App; unset disables the Mini App button and `/app` |
+| `BOT_ADMIN_IDS` | Comma-separated Telegram IDs allowed to run `/stats`; unset leaves it open. **Not wired into `functions.js`, so it has no effect in production** |
 
 Copy `.env.example` to `.env.development` for local dev.
 
-## Production deployment (nginx + pm2)
+## Production deployment (Firebase Cloud Functions)
 
-The bot runs as a webhook behind nginx on a dedicated subdomain.
+The bot runs as the 2nd-gen function `numismatWebhook` (Node 22, `europe-west3`) in its own GCP/Firebase project **`numismat-8502`** (`.firebaserc`). It is isolated from the unrelated `my-budget-eb39d` project it used to share — don't touch that one.
+
+- **Firestore** `(default)` in `numismat-8502` (`europe-central2`) stores analytics: `bot_events`, `bot_stats/counters`, `bot_users` (see `app/analytics.js`, `/stats`). `firebase-admin` uses the function's default credentials, so no key file is needed.
+- **Secrets** (Secret Manager): `BOT_TOKEN`, `WP_APP_PASSWORD`. Set with `firebase functions:secrets:set <NAME> --project numismat-8502`.
+- **Plain params** come from `.env.numismat-8502` (gitignored): `API_BASE_URL`, `WP_USERNAME`, `WEBAPP_URL`.
+- **Required APIs:** Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, Secret Manager, Firestore (already enabled).
+- **Image cleanup:** `firebase functions:artifacts:setpolicy --location europe-west3 --project numismat-8502` (already applied, 1 day).
 
 ```bash
-# On the server — copy nginx config and get SSL cert
-sudo cp nginx.bot.conf /etc/nginx/sites-available/bot.coins.cybers.pro
-sudo ln -s /etc/nginx/sites-available/bot.coins.cybers.pro /etc/nginx/sites-enabled/
-sudo certbot --nginx -d bot.coins.cybers.pro
-sudo nginx -t && sudo nginx -s reload
+npm run deploy
 
-# Start bot process
-pm2 start server.js --name coin-bot
+# Point Telegram at the function (once, or after changing project/region)
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://europe-west3-numismat-8502.cloudfunctions.net/numismatWebhook"
 
-# Register webhook with Telegram (once)
-curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.coins.cybers.pro/webhook"
+# Inspect
+firebase functions:list --project numismat-8502
+firebase functions:log --only numismatWebhook --project numismat-8502
 ```
 
-nginx config is in `nginx.bot.conf` — proxies `bot.coins.cybers.pro` → `localhost:3001`.
+`nginx.bot.conf` and `server.js` are leftovers of an earlier self-hosted plan (nginx + pm2 on `bot.coins.cybers.pro`); the bot is not deployed that way. `cloudbuild.yaml`/`Dockerfile` are from the older Cloud Run setup and are likewise unused.
 
 ## Code style
 
