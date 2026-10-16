@@ -13,6 +13,7 @@ const wpAppPassword = defineSecret('WP_APP_PASSWORD');
 const apiBaseUrl = defineString('API_BASE_URL');
 const wpUsername = defineString('WP_USERNAME');
 const webAppUrl = defineString('WEBAPP_URL', { default: '' });
+const botAdminIds = defineString('BOT_ADMIN_IDS', { default: '' });
 
 // Lazy init: bot is created on first request so Firebase CLI can analyze
 // the codebase without env vars being present.
@@ -37,6 +38,7 @@ exports.numismatWebhook = onRequest(
     process.env.API_BASE_URL = apiBaseUrl.value();
     process.env.WP_USERNAME = wpUsername.value();
     process.env.WEBAPP_URL = webAppUrl.value();
+    process.env.BOT_ADMIN_IDS = botAdminIds.value();
     process.env.WP_APP_PASSWORD = wpAppPassword.value();
     return getHandler()(req, res);
   },
